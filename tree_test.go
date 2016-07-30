@@ -11,7 +11,7 @@ func TestPut(t *testing.T) {
 		}
 		assertEquals(t, n.Value, value, "value for %q", key)
 	}
-	tr := new(Tree)
+	tr := New()
 	tr.Put("foo", "123")
 	tr.Put("bar", "999")
 	tr.Put("日本語", "こんにちは")

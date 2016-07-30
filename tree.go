@@ -6,6 +6,11 @@ type Tree struct {
 	Root Node
 }
 
+// New creates a Tree.
+func New() *Tree {
+	return new(Tree)
+}
+
 // Get retrieves a value for key.
 func (tr *Tree) Get(key string) *Node {
 	n := &tr.Root
