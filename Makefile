@@ -1,15 +1,15 @@
 default: test
 
 test:
-	go test ./...
+	go test
 
 test-full:
-	go test -v -race ./...
+	go test -v -race
 
 lint:
-	go vet ./...
+	go vet .
 	@echo ""
-	golint ./...
+	golint .
 
 cyclo:
 	-gocyclo -top 10 -avg .
@@ -18,12 +18,12 @@ report:
 	@echo "misspell"
 	@find . -name "*.go" | xargs misspell
 	@echo ""
-	-errcheck ./...
+	-errcheck .
 	@echo ""
 	-gocyclo -over 14 -avg .
 	@echo ""
-	-go vet ./...
+	-go vet .
 	@echo ""
-	golint ./...
+	golint .
 
 .PHONY: test test-full lint cyclo report
