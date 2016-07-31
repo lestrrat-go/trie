@@ -22,6 +22,16 @@ func TestPut(t *testing.T) {
 	f(tr, "English", nil)
 }
 
+func TestTree_nc(t *testing.T) {
+	tr := New()
+	tr.Put("foo", "123")
+	tr.Put("bar", "999")
+	tr.Put("日本語", "こんにちは")
+	if tr.nc != 9 {
+		t.Errorf("nc mismatch: %d", tr.nc)
+	}
+}
+
 func TestNode_cc(t *testing.T) {
 	f := func(runes string, cc int) {
 		n := new(Node)

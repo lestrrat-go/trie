@@ -4,6 +4,9 @@ package trie
 type Tree struct {
 	// Root is root of the tree. Only Child is valid.
 	Root Node
+
+	// nc means node counts
+	nc int
 }
 
 // New creates a Tree.
@@ -27,7 +30,11 @@ func (tr *Tree) Get(key string) *Node {
 func (tr *Tree) Put(key string, value interface{}) *Node {
 	n := &tr.Root
 	for _, r := range key {
-		n, _ = n.Dig(r)
+		var f bool
+		n, f = n.Dig(r)
+		if f {
+			tr.nc++
+		}
 	}
 	n.Value = value
 	return n
