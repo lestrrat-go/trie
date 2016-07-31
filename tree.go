@@ -39,7 +39,9 @@ type Node struct {
 	Value interface{}
 	Low   *Node
 	High  *Node
+
 	Child *Node
+	cc    int // count of children.
 }
 
 // Get finds a child node which Label matches r.
@@ -63,8 +65,10 @@ func (n *Node) Get(r rune) *Node {
 func (n *Node) Dig(r rune) (node *Node, isNew bool) {
 	if n.Child == nil {
 		n.Child = &Node{Label: r}
+		n.cc = 1
 		return n.Child, true
 	}
+	m := n
 	n = n.Child
 	for {
 		switch {
@@ -73,15 +77,61 @@ func (n *Node) Dig(r rune) (node *Node, isNew bool) {
 		case r < n.Label:
 			if n.Low == nil {
 				n.Low = &Node{Label: r}
+				m.cc++
 				return n.Low, true
 			}
 			n = n.Low
 		default:
 			if n.High == nil {
 				n.High = &Node{Label: r}
+				m.cc++
 				return n.High, true
 			}
 			n = n.High
 		}
+	}
+}
+
+// balance balances children nodes.
+func (n *Node) Balance() {
+	if n.Child == nil {
+		return
+	}
+	nodes := make([]*Node, 0, n.cc)
+	nodes = enumerateNodes(nodes, n.Child)
+	n.Child = balanceNodes(nodes, 0, len(nodes))
+}
+
+func enumerateNodes(nodes []*Node, n *Node) []*Node {
+	if n == nil {
+		return nodes
+	}
+	nodes = enumerateNodes(nodes, n.Low)
+	nodes = append(nodes, n)
+	nodes = enumerateNodes(nodes, n.High)
+	return nodes
+}
+
+func balanceNodes(nodes []*Node, s, e int) *Node {
+	c := e - s
+	switch {
+	case c <= 0:
+		return nil
+	case c == 1:
+		n := nodes[s]
+		n.Low = nil
+		n.High = nil
+		return n
+	case c == 2:
+		n := nodes[s]
+		n.High = nodes[s+1]
+		n.Low = nil
+		return n
+	default:
+		m := (s + e) / 2
+		n := nodes[m]
+		n.Low = balanceNodes(nodes, s, m)
+		n.High = balanceNodes(nodes, m+1, e)
+		return n
 	}
 }
