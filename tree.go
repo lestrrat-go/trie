@@ -44,6 +44,7 @@ func (tr *Tree) Put(key string, value interface{}) *Node {
 	return n
 }
 
+// Each processes all nodes in width first.
 func (tr *Tree) Each(proc NodeProc) {
 	q := list.New()
 	q.PushBack(&tr.Root)
@@ -120,7 +121,7 @@ func (n *Node) Dig(r rune) (node *Node, isNew bool) {
 	}
 }
 
-// balance balances children nodes.
+// Balance balances children nodes.
 func (n *Node) Balance() {
 	if n.Child == nil {
 		return
@@ -168,4 +169,5 @@ func balanceNodes(nodes []*Node, s, e int) *Node {
 	}
 }
 
+// NodeProc provides procedure for nodes.
 type NodeProc func(*Node) bool

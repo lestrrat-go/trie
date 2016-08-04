@@ -7,9 +7,9 @@ type Match struct {
 	Value   interface{}
 }
 
-// Matcher compares a string with multiple strings using Aho-Corasick
+// MatchTree compares a string with multiple strings using Aho-Corasick
 // algorithm.
-type Matcher struct {
+type MatchTree struct {
 	root *Node
 }
 
@@ -18,54 +18,55 @@ type matchData struct {
 	fail  *Node
 }
 
-// Compile compiles a Matcher from a Tree.
-func Compile(tr *Tree) *Matcher {
-	m := &Matcher{
+// Compile compiles a MatchTree from a Tree.
+func Compile(tr *Tree) *MatchTree {
+	mt := &MatchTree{
 		root: &tr.Root,
 	}
-	m.root.Value = &matchData{fail: m.root}
+	mt.root.Value = &matchData{fail: mt.root}
 	tr.Each(func(n0 *Node) bool {
 		n0.Each(func(n1 *Node) bool {
-			m.fillFail(n1, n0)
+			mt.fillFail(n1, n0)
 			return true
 		})
 		return true
 	})
-	return m
+	return mt
 }
 
-func (m *Matcher) fillFail(curr, parent *Node) {
+func (mt *MatchTree) fillFail(curr, parent *Node) {
 	d := &matchData{value: curr.Value}
 	curr.Value = d
 	curr.Value = &matchData{value: curr.Value}
-	if parent == m.root {
-		d.fail = m.root
+	if parent == mt.root {
+		d.fail = mt.root
 		return
 	}
-	d.fail = m.nextNode(m.failNode(parent), curr.Label)
+	d.fail = mt.nextNode(mt.failNode(parent), curr.Label)
 }
 
-func (m *Matcher) failNode(node *Node) *Node {
+func (mt *MatchTree) failNode(node *Node) *Node {
 	fail := (node.Value.(*matchData)).fail
 	if fail == nil {
-		return m.root
+		return mt.root
 	}
 	return fail
 }
 
-func (m *Matcher) nextNode(node *Node, r rune) *Node {
+func (mt *MatchTree) nextNode(node *Node, r rune) *Node {
 	for {
 		if next := node.Get(r); next != nil {
 			return nil
 		}
-		if node == m.root {
-			return m.root
+		if node == mt.root {
+			return mt.root
 		}
-		node = m.failNode(node)
+		node = mt.failNode(node)
 	}
 }
 
-func (m *Matcher) Match(text string) []Match {
+// Match matches text and return all matched data.
+func (mt *MatchTree) Match(text string) []Match {
 	// TODO:
 	return nil
 }
