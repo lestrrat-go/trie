@@ -1,5 +1,9 @@
 package trie
 
+import (
+	"container/list"
+)
+
 // Tree implemnets ternary trie-tree.
 type Tree struct {
 	// Root is root of the tree. Only Child is valid.
@@ -38,6 +42,23 @@ func (tr *Tree) Put(key string, value interface{}) *Node {
 	}
 	n.Value = value
 	return n
+}
+
+func (tr *Tree) Each(proc NodeProc) {
+	q := list.New()
+	q.PushBack(&tr.Root)
+	for q.Len() != 0 {
+		f := q.Front()
+		q.Remove(f)
+		n := f.Value.(*Node)
+		if !proc(n) {
+			break
+		}
+		n.Each(func(n *Node) bool {
+			q.PushBack(n)
+			return true
+		})
+	}
 }
 
 // Node implemnets node of ternary trie-tree.
@@ -105,18 +126,22 @@ func (n *Node) Balance() {
 		return
 	}
 	nodes := make([]*Node, 0, n.cc)
-	nodes = enumerateNodes(nodes, n.Child)
+	n.Child.Each(func(m *Node) bool {
+		nodes = append(nodes, m)
+		return true
+	})
 	n.Child = balanceNodes(nodes, 0, len(nodes))
 }
 
-func enumerateNodes(nodes []*Node, n *Node) []*Node {
+// Each processes all sibiling nodes with proc.
+func (n *Node) Each(proc NodeProc) bool {
 	if n == nil {
-		return nodes
+		return true
 	}
-	nodes = enumerateNodes(nodes, n.Low)
-	nodes = append(nodes, n)
-	nodes = enumerateNodes(nodes, n.High)
-	return nodes
+	if !n.Low.Each(proc) || !proc(n) || !n.High.Each(proc) {
+		return false
+	}
+	return true
 }
 
 func balanceNodes(nodes []*Node, s, e int) *Node {
@@ -142,3 +167,5 @@ func balanceNodes(nodes []*Node, s, e int) *Node {
 		return n
 	}
 }
+
+type NodeProc func(*Node) bool
