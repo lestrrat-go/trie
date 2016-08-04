@@ -2,9 +2,7 @@ package trie
 
 // Match is matched data.
 type Match struct {
-	Index   int
-	Pattern string
-	Value   interface{}
+	Value interface{}
 }
 
 // MatchTree compares a string with multiple strings using Aho-Corasick
@@ -65,8 +63,46 @@ func (mt *MatchTree) nextNode(node *Node, r rune) *Node {
 	}
 }
 
-// Match matches text and return all matched data.
-func (mt *MatchTree) Match(text string) []Match {
-	// TODO:
-	return nil
+// MatchAll matches text and return all matched data.I
+func (mt *MatchTree) MatchAll(text string, matches[]Match) []Match {
+	m := mt.Matcher()
+	for _, r := range text {
+		matches = m.Next(r, matches)
+	}
+	return matches
+}
+
+// Matcher implements an iterator to match.
+type Matcher struct {
+	mt   *MatchTree
+	curr *Node
+}
+
+// Matcher creates a new Matcher which is matching context.
+func (mt *MatchTree) Matcher() *Matcher {
+	return (&Matcher{mt: mt}).Reset()
+}
+
+// Reset resets matchin context.
+func (m *Matcher) Reset() *Matcher {
+	m.curr = m.mt.root
+	return m
+}
+
+// Next appends a rune to match string, then get matches.
+func (m *Matcher) Next(r rune, matches []Match) []Match {
+	m.curr = m.mt.nextNode(m.curr, r)
+	if m.curr == m.mt.root {
+		return nil
+	}
+	for n := m.curr; n != m.mt.root; {
+		d := n.Value.(*matchData)
+		if d.value != nil {
+			matches = append(matches, Match{
+				Value: d.value,
+			})
+		}
+		n = d.fail
+	}
+	return matches
 }
