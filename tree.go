@@ -1,8 +1,6 @@
 package trie
 
-import (
-	"container/list"
-)
+import "container/list"
 
 // Tree implemnets ternary trie-tree.
 type Tree struct {
@@ -51,11 +49,11 @@ func (tr *Tree) Each(proc NodeProc) {
 	for q.Len() != 0 {
 		f := q.Front()
 		q.Remove(f)
-		n := f.Value.(*Node)
-		if !proc(n) {
+		curr := f.Value.(*Node)
+		if !proc(curr) {
 			break
 		}
-		n.Each(func(n *Node) bool {
+		curr.Child.Each(func(n *Node) bool {
 			q.PushBack(n)
 			return true
 		})

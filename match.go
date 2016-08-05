@@ -23,7 +23,7 @@ func Compile(tr *Tree) *MatchTree {
 	}
 	mt.root.Value = &matchData{fail: mt.root}
 	tr.Each(func(n0 *Node) bool {
-		n0.Each(func(n1 *Node) bool {
+		n0.Child.Each(func(n1 *Node) bool {
 			mt.fillFail(n1, n0)
 			return true
 		})
@@ -35,7 +35,6 @@ func Compile(tr *Tree) *MatchTree {
 func (mt *MatchTree) fillFail(curr, parent *Node) {
 	d := &matchData{value: curr.Value}
 	curr.Value = d
-	curr.Value = &matchData{value: curr.Value}
 	if parent == mt.root {
 		d.fail = mt.root
 		return
@@ -54,7 +53,7 @@ func (mt *MatchTree) failNode(node *Node) *Node {
 func (mt *MatchTree) nextNode(node *Node, r rune) *Node {
 	for {
 		if next := node.Get(r); next != nil {
-			return nil
+			return next
 		}
 		if node == mt.root {
 			return mt.root
@@ -64,7 +63,7 @@ func (mt *MatchTree) nextNode(node *Node, r rune) *Node {
 }
 
 // MatchAll matches text and return all matched data.I
-func (mt *MatchTree) MatchAll(text string, matches[]Match) []Match {
+func (mt *MatchTree) MatchAll(text string, matches []Match) []Match {
 	m := mt.Matcher()
 	for _, r := range text {
 		matches = m.Next(r, matches)
