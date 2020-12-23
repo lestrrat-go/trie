@@ -2,15 +2,6 @@ package trie
 
 import "container/list"
 
-// Tree implemnets ternary trie-tree.
-type Tree struct {
-	// Root is root of the tree. Only Child is valid.
-	Root Node
-
-	// nc means node counts
-	nc int
-}
-
 // New creates a Tree.
 func New() *Tree {
 	return new(Tree)
@@ -58,17 +49,6 @@ func (tr *Tree) Each(proc NodeProc) {
 			return true
 		})
 	}
-}
-
-// Node implemnets node of ternary trie-tree.
-type Node struct {
-	Label rune
-	Value interface{}
-	Low   *Node
-	High  *Node
-
-	Child *Node
-	cc    int // count of children.
 }
 
 // Get finds a child node which Label matches r.
@@ -167,5 +147,3 @@ func balanceNodes(nodes []*Node, s, e int) *Node {
 	}
 }
 
-// NodeProc provides procedure for nodes.
-type NodeProc func(*Node) bool

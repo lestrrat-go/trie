@@ -1,21 +1,5 @@
 package trie
 
-// Match is matched data.
-type Match struct {
-	Value interface{}
-}
-
-// MatchTree compares a string with multiple strings using Aho-Corasick
-// algorithm.
-type MatchTree struct {
-	root *Node
-}
-
-type matchData struct {
-	value interface{}
-	fail  *Node
-}
-
 // Compile compiles a MatchTree from a Tree.
 func Compile(tr *Tree) *MatchTree {
 	mt := &MatchTree{
