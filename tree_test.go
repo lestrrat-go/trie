@@ -1,25 +1,45 @@
 package trie
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestPut(t *testing.T) {
-	f := func(tr *Tree, key string, value interface{}) {
+	f := func(t *testing.T, tr *Tree, key string, value interface{}) {
+		t.Helper()
+
 		n := tr.Get(key)
 		if value == nil {
-			assertEquals(t, n, (*Node)(nil), "no nodes for %q", key)
+			assert.Equal(t, n, (*Node)(nil), "no nodes for %q", key)
 			return
 		}
-		assertEquals(t, n.Value, value, "value for %q", key)
+		assert.Equal(t, n.Value, value, "value for %q", key)
 	}
+
+	testcases := []struct {
+		Key   string
+		Value interface{}
+	}{
+		{Key: "foo", Value: "123"},
+		{Key: "bar", Value: "999"},
+		{Key: "日本語", Value: "こんにちは"},
+		{Key: "baz"},
+		{Key: "English"},
+	}
+
 	tr := New()
 	tr.Put("foo", "123")
 	tr.Put("bar", "999")
 	tr.Put("日本語", "こんにちは")
-	f(tr, "foo", "123")
-	f(tr, "bar", "999")
-	f(tr, "日本語", "こんにちは")
-	f(tr, "baz", nil)
-	f(tr, "English", nil)
+
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.Key, func(t *testing.T) {
+			f(t, tr, tc.Key, tc.Value)
+		})
+	}
 }
 
 func TestTree_nc(t *testing.T) {
@@ -38,7 +58,9 @@ func TestNode_cc(t *testing.T) {
 		for _, r := range runes {
 			n.Dig(r)
 		}
-		assertEquals(t, n.cc, cc, "runes: %q", runes)
+		if !assert.Equal(t, n.cc, cc, "runes: %q", runes) {
+			return
+		}
 	}
 	f("", 0)
 	f("a", 1)
@@ -104,7 +126,11 @@ func TestNode_Balance(t *testing.T) {
 		t.Fatal("Child shoud not be nil after balancing")
 	}
 	r1 := collectRunes1(n.Child, n.cc)
-	assertEquals(t, string(r1), "84C26AE13579BDF", "should be balanced")
+	if !assert.Equal(t, string(r1), "84C26AE13579BDF", "should be balanced") {
+		return
+	}
 	r2 := collectRunes2(n.Child, n.cc)
-	assertEquals(t, string(r2), "8C4EA62FDB97531", "should be balanced")
+	if !assert.Equal(t, string(r2), "8C4EA62FDB97531", "should be balanced") {
+		return
+	}
 }
