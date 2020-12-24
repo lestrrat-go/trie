@@ -1,8 +1,10 @@
 package trie
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -110,46 +112,26 @@ func TestNode_cc(t *testing.T) {
 
 // collectRunes1 coolects label runes from sibling nodes.
 func collectRunes1(n *Node, max int) []rune {
-	runes := make([]rune, 0, max)
-	q := make([]*Node, 0, max)
-	q = append(q, n)
-	for len(q) > 0 {
-		m := q[0]
-		runes = append(runes, m.label.(RuneLabel).Rune())
-		if len(runes) > max {
-			return []rune("nodes may have infinite loop")
-		}
-		if m.Low != nil {
-			q = append(q, m.Low)
-		}
-		if m.High != nil {
-			q = append(q, m.High)
-		}
-		q = q[1:]
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var runes []rune
+	for q := range n.Iterate(WithBFS(ctx)) {
+		runes = append(runes, q.label.(RuneLabel).Rune())
 	}
 	return runes
 }
 
-// collectRunes1 coolects label runes from sibling nodes in reverse order.
+// collectRunes2 coolects label runes from sibling nodes in reverse order.
 func collectRunes2(n *Node, max int) []rune {
-	runes := make([]rune, 0, max)
-	q := make([]*Node, 0, max)
-	q = append(q, n)
-	for len(q) > 0 {
-		m := q[0]
-		runes = append(runes, m.label.(RuneLabel).Rune())
-		if len(runes) > max {
-			return []rune("nodes may have infinite loop")
-		}
-		if m.High != nil {
-			q = append(q, m.High)
-		}
-		if m.Low != nil {
-			q = append(q, m.Low)
-		}
-		q = q[1:]
-	}
-	return runes
+	  ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+  defer cancel()
+
+  var runes []rune
+  for q := range n.Iterate(WithBFSReverse(ctx)) {
+    runes = append(runes, q.label.(RuneLabel).Rune())
+  }
+  return runes
 }
 
 func TestNode_Balance(t *testing.T) {
@@ -162,11 +144,11 @@ func TestNode_Balance(t *testing.T) {
 		t.Fatal("Child shoud not be nil after balancing")
 	}
 	r1 := collectRunes1(n.Child, n.cc)
-	if !assert.Equal(t, string(r1), "84C26AE13579BDF", "should be balanced") {
+	if !assert.Equal(t, "84C26AE13579BDF", string(r1), "should be balanced") {
 		return
 	}
 	r2 := collectRunes2(n.Child, n.cc)
-	if !assert.Equal(t, string(r2), "8C4EA62FDB97531", "should be balanced") {
+	if !assert.Equal(t, "8C4EA62FDB97531", string(r2), "should be balanced") {
 		return
 	}
 }

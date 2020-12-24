@@ -114,7 +114,44 @@ func (n *Node) Balance() {
 	n.Child = balanceNodes(nodes, 0, len(nodes))
 }
 
-func (n *Node) iterate(ctx context.Context, root *Node, ch chan *Node) {
+func iterateNodesBFS(ctx context.Context, n, root *Node, ch chan *Node, reverse bool) {
+	//	if root != nil && n == root {
+	defer close(ch)
+	//	}
+
+	if n == nil {
+		return
+	}
+
+	nodes := []*Node{n}
+	for len(nodes) > 0 {
+		q := nodes[0]
+		nodes = nodes[1:]
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- q:
+		}
+
+		if reverse {
+		if next := q.High; next != nil {
+			nodes = append(nodes, next)
+		}
+		if next := q.Low; next != nil {
+			nodes = append(nodes, next)
+		}
+	} else {
+		if next := q.Low; next != nil {
+			nodes = append(nodes, next)
+		}
+		if next := q.High; next != nil {
+			nodes = append(nodes, next)
+		}
+	}
+	}
+}
+
+func iterateNodesDFS(ctx context.Context, n, root *Node, ch chan *Node) {
 	if root != nil && n == root {
 		defer close(ch)
 	}
@@ -127,8 +164,8 @@ func (n *Node) iterate(ctx context.Context, root *Node, ch chan *Node) {
 	case <-ctx.Done():
 		return
 	default:
-		if n.Low != nil {
-			n.Low.iterate(ctx, root, ch)
+		if next := n.Low; next != nil {
+			iterateNodesDFS(ctx, next, root, ch)
 		}
 	}
 
@@ -142,10 +179,43 @@ func (n *Node) iterate(ctx context.Context, root *Node, ch chan *Node) {
 	case <-ctx.Done():
 		return
 	default:
-		if n.High != nil {
-			n.High.iterate(ctx, root, ch)
+		if next := n.High; next != nil {
+			iterateNodesDFS(ctx, next, root, ch)
 		}
 	}
+}
+
+type iterationStrategy struct{}
+
+const (
+	iterateStrategyDFS = iota
+	iterateStrategyBFS
+	iterateStrategyBFSReverse
+)
+
+func WithBFS(ctx context.Context) context.Context {
+	return context.WithValue(ctx, iterationStrategy{}, iterateStrategyBFS)
+}
+
+func WithBFSReverse(ctx context.Context) context.Context {
+	return context.WithValue(ctx, iterationStrategy{}, iterateStrategyBFSReverse)
+}
+
+func (n *Node) Iterate(ctx context.Context) <-chan *Node {
+	ch := make(chan *Node)
+
+	switch st := ctx.Value(iterationStrategy{}); st {
+	case iterateStrategyDFS, nil:
+		go iterateNodesDFS(ctx, n, n, ch)
+	case iterateStrategyBFS:
+		go iterateNodesBFS(ctx, n, n, ch, false)
+	case iterateStrategyBFSReverse:
+		go iterateNodesBFS(ctx, n, n, ch, true)
+	default:
+		panic("unknown iteration strategy")
+	}
+
+	return ch
 }
 
 // Each processes all sibiling nodes with proc.
@@ -157,9 +227,7 @@ func (n *Node) Each(proc NodeProc) bool {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 
-	ch := make(chan *Node)
-	go n.iterate(ctx, n, ch)
-	for n := range ch {
+	for n := range n.Iterate(ctx) {
 		if !proc(n) {
 			return false
 		}
