@@ -6,6 +6,35 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEach(t *testing.T) {
+	tr := New()
+	tr.Put("foo", "123")
+	tr.Put("bar", "999")
+	tr.Put("日本語", "こんにちは")
+
+	expected := []rune{
+		0,
+		'b',
+		'f',
+		'日',
+		'a',
+		'o',
+		'本',
+		'r',
+		'o',
+		'語',
+	}
+
+	i := 0
+	tr.Each(NodeProc(func(n *Node) bool {
+		if !assert.Equal(t, expected[i], n.Label, `labels should match for input %d`, i) {
+			return false
+		}
+		i++
+		return true
+	}))
+}
+
 func TestPut(t *testing.T) {
 	f := func(t *testing.T, tr *Tree, key string, value interface{}) {
 		t.Helper()
