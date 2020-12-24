@@ -9,9 +9,9 @@ import (
 
 func TestEach(t *testing.T) {
 	tr := New()
-	tr.Put("foo", "123")
-	tr.Put("bar", "999")
-	tr.Put("日本語", "こんにちは")
+	tr.Put(StringKey("foo"), "123")
+	tr.Put(StringKey("bar"), "999")
+	tr.Put(StringKey("日本語"), "こんにちは")
 
 	expected := []rune{
 		0,
@@ -28,7 +28,8 @@ func TestEach(t *testing.T) {
 
 	i := 0
 	tr.Each(NodeProc(func(n *Node) bool {
-		if !assert.Equal(t, expected[i], n.Label, `labels should match for input %d`, i) {
+		t.Logf("%#v", n.label)
+		if !assert.Equal(t, expected[i], n.label.(RuneLabel).Rune(), `labels should match for input %d`, i) {
 			return false
 		}
 		i++
