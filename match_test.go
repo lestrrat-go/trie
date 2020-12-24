@@ -1,6 +1,10 @@
 package trie
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func toInts(matches []Match) []int {
 	if len(matches) == 0 {
@@ -26,7 +30,7 @@ func TestMatch(t *testing.T) {
 	// Check tree.
 	f := func(s string, exp []int) {
 		act := toInts(mt.MatchAll(s, nil))
-		assertEquals(t, act, exp, "not match for key=%q", s)
+		assert.Equal(t, act, exp, "not match for key=%q", s)
 	}
 	f("ab", []int{2})
 	f("bc", []int{4})
