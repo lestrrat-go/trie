@@ -29,7 +29,12 @@ func TestEach(t *testing.T) {
 	i := 0
 	tr.Each(NodeProc(func(n *Node) bool {
 		t.Logf("%#v", n.label)
-		if !assert.Equal(t, expected[i], n.label.(RuneLabel).Rune(), `labels should match for input %d`, i) {
+
+		var r rune
+		if l := n.label; l != nil {
+			r = l.(RuneLabel).Rune()
+		}
+		if !assert.Equal(t, expected[i], r, `labels should match for input %d`, i) {
 			return false
 		}
 		i++
