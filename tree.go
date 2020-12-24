@@ -1,7 +1,5 @@
 package trie
 
-import "container/list"
-
 // New creates a Tree.
 func New() *Tree {
 	return &Tree{
@@ -37,17 +35,15 @@ func (tr *Tree) Put(key Key, value interface{}) *Node {
 
 // Each processes all nodes in width first.
 func (tr *Tree) Each(proc NodeProc) {
-	q := list.New()
-	q.PushBack(tr.root)
-	for q.Len() != 0 {
-		f := q.Front()
-		q.Remove(f)
-		curr := f.Value.(*Node)
-		if !proc(curr) {
+	nodes := []*Node{tr.root}
+	for len(nodes) > 0 {
+		f := nodes[0]
+		nodes = nodes[1:]
+		if !proc(f) {
 			break
 		}
-		curr.Child.Each(func(n *Node) bool {
-			q.PushBack(n)
+		f.Child.Each(func(n *Node) bool {
+			nodes = append(nodes, n)
 			return true
 		})
 	}
