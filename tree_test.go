@@ -1,13 +1,14 @@
 package trie
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPut(t *testing.T) {
-	f := func(t *testing.T, tr *Tree, key string, value interface{}) {
+	f := func(t *testing.T, tr *Tree, key Key, value interface{}) {
 		t.Helper()
 
 		n := tr.Get(key)
@@ -19,24 +20,24 @@ func TestPut(t *testing.T) {
 	}
 
 	testcases := []struct {
-		Key   string
+		Key   Key
 		Value interface{}
 	}{
-		{Key: "foo", Value: "123"},
-		{Key: "bar", Value: "999"},
-		{Key: "日本語", Value: "こんにちは"},
-		{Key: "baz"},
-		{Key: "English"},
+		{Key: StringKey("foo"), Value: "123"},
+		{Key: StringKey("bar"), Value: "999"},
+		{Key: StringKey("日本語"), Value: "こんにちは"},
+		{Key: StringKey("baz")},
+		{Key: StringKey("English")},
 	}
 
 	tr := New()
-	tr.Put("foo", "123")
-	tr.Put("bar", "999")
-	tr.Put("日本語", "こんにちは")
+	tr.Put(StringKey("foo"), "123")
+	tr.Put(StringKey("bar"), "999")
+	tr.Put(StringKey("日本語"), "こんにちは")
 
 	for _, tc := range testcases {
 		tc := tc
-		t.Run(tc.Key, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s", tc.Key), func(t *testing.T) {
 			f(t, tr, tc.Key, tc.Value)
 		})
 	}
@@ -44,32 +45,32 @@ func TestPut(t *testing.T) {
 
 func TestTree_nc(t *testing.T) {
 	tr := New()
-	tr.Put("foo", "123")
-	tr.Put("bar", "999")
-	tr.Put("日本語", "こんにちは")
+	tr.Put(StringKey("foo"), "123")
+	tr.Put(StringKey("bar"), "999")
+	tr.Put(StringKey("日本語"), "こんにちは")
 	if tr.nc != 9 {
 		t.Errorf("nc mismatch: %d", tr.nc)
 	}
 }
 
 func TestNode_cc(t *testing.T) {
-	f := func(runes string, cc int) {
+	f := func(key Key, cc int) {
 		n := new(Node)
-		for _, r := range runes {
-			n.Dig(r)
+		for l := range key.Iterate() {
+			n.Dig(l)
 		}
-		if !assert.Equal(t, n.cc, cc, "runes: %q", runes) {
+		if !assert.Equal(t, n.cc, cc, "runes: %q", key) {
 			return
 		}
 	}
-	f("", 0)
-	f("a", 1)
-	f("bac", 3)
-	f("aaa", 1)
-	f("bbbaaaccc", 3)
-	f("bacbacbac", 3)
-	f("日本語こんにちは", 8)
-	f("あめんぼあかいなあいうえお", 10)
+	f(StringKey(""), 0)
+	f(StringKey("a"), 1)
+	f(StringKey("bac"), 3)
+	f(StringKey("aaa"), 1)
+	f(StringKey("bbbaaaccc"), 3)
+	f(StringKey("bacbacbac"), 3)
+	f(StringKey("日本語こんにちは"), 8)
+	f(StringKey("あめんぼあかいなあいうえお"), 10)
 }
 
 // collectRunes1 coolects label runes from sibling nodes.
@@ -79,7 +80,7 @@ func collectRunes1(n *Node, max int) []rune {
 	q = append(q, n)
 	for len(q) > 0 {
 		m := q[0]
-		runes = append(runes, m.Label)
+		runes = append(runes, m.label.(RuneLabel).Rune())
 		if len(runes) > max {
 			return []rune("nodes may have infinite loop")
 		}
@@ -101,7 +102,7 @@ func collectRunes2(n *Node, max int) []rune {
 	q = append(q, n)
 	for len(q) > 0 {
 		m := q[0]
-		runes = append(runes, m.Label)
+		runes = append(runes, m.label.(RuneLabel).Rune())
 		if len(runes) > max {
 			return []rune("nodes may have infinite loop")
 		}
@@ -118,8 +119,8 @@ func collectRunes2(n *Node, max int) []rune {
 
 func TestNode_Balance(t *testing.T) {
 	n := new(Node)
-	for _, r := range "123456789ABCDEF" {
-		n.Dig(r)
+	for l := range StringKey("123456789ABCDEF").Iterate() {
+		n.Dig(l)
 	}
 	n.Balance()
 	if n.Child == nil {

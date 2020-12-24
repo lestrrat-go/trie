@@ -3,7 +3,7 @@ package trie
 // Tree implemnets ternary trie-tree.
 type Tree struct {
 	// Root is root of the tree. Only Child is valid.
-	Root Node
+	root *Node
 
 	// nc means node counts
 	nc int
@@ -11,7 +11,7 @@ type Tree struct {
 
 // Node implemnets node of ternary trie-tree.
 type Node struct {
-	Label rune
+	label Label
 	Value interface{}
 	Low   *Node
 	High  *Node
@@ -39,4 +39,11 @@ type matchData struct {
 	fail  *Node
 }
 
+// Key is a sequence of Labels that comprises an input to a Tree.
+type Key interface {
+	Iterate() <-chan Label
+}
 
+type Label interface {
+	Compare(Label) int
+}

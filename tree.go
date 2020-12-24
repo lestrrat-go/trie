@@ -4,14 +4,16 @@ import "container/list"
 
 // New creates a Tree.
 func New() *Tree {
-	return new(Tree)
+	return &Tree{
+		root: &Node{},
+	}
 }
 
 // Get retrieves a value for key.
-func (tr *Tree) Get(key string) *Node {
-	n := &tr.Root
-	for _, r := range key {
-		n = n.Get(r)
+func (tr *Tree) Get(key Key) *Node {
+	n := tr.root
+	for label := range key.Iterate() {
+		n = n.Get(label)
 		if n == nil {
 			return nil
 		}
@@ -20,11 +22,11 @@ func (tr *Tree) Get(key string) *Node {
 }
 
 // Put stores a pair of key and value.
-func (tr *Tree) Put(key string, value interface{}) *Node {
-	n := &tr.Root
-	for _, r := range key {
+func (tr *Tree) Put(key Key, value interface{}) *Node {
+	n := tr.root
+	for label := range key.Iterate() {
 		var f bool
-		n, f = n.Dig(r)
+		n, f = n.Dig(label)
 		if f {
 			tr.nc++
 		}
@@ -36,7 +38,7 @@ func (tr *Tree) Put(key string, value interface{}) *Node {
 // Each processes all nodes in width first.
 func (tr *Tree) Each(proc NodeProc) {
 	q := list.New()
-	q.PushBack(&tr.Root)
+	q.PushBack(tr.root)
 	for q.Len() != 0 {
 		f := q.Front()
 		q.Remove(f)
@@ -52,13 +54,13 @@ func (tr *Tree) Each(proc NodeProc) {
 }
 
 // Get finds a child node which Label matches r.
-func (n *Node) Get(r rune) *Node {
+func (n *Node) Get(l Label) *Node {
 	n = n.Child
 	for n != nil {
-		switch {
-		case r == n.Label:
+		switch l.Compare(n.label) {
+		case 0:
 			return n
-		case r < n.Label:
+		case -1:
 			n = n.Low
 		default:
 			n = n.High
@@ -69,28 +71,28 @@ func (n *Node) Get(r rune) *Node {
 
 // Dig finds a child node which Label matches r. Or create a new one when there
 // are no nodes.
-func (n *Node) Dig(r rune) (node *Node, isNew bool) {
+func (n *Node) Dig(l Label) (node *Node, isNew bool) {
 	if n.Child == nil {
-		n.Child = &Node{Label: r}
+		n.Child = &Node{label: l}
 		n.cc = 1
 		return n.Child, true
 	}
 	m := n
 	n = n.Child
 	for {
-		switch {
-		case r == n.Label:
+		switch l.Compare(n.label) {
+		case 0:
 			return n, false
-		case r < n.Label:
+		case -1:
 			if n.Low == nil {
-				n.Low = &Node{Label: r}
+				n.Low = &Node{label: l}
 				m.cc++
 				return n.Low, true
 			}
 			n = n.Low
 		default:
 			if n.High == nil {
-				n.High = &Node{Label: r}
+				n.High = &Node{label: l}
 				m.cc++
 				return n.High, true
 			}
@@ -146,4 +148,3 @@ func balanceNodes(nodes []*Node, s, e int) *Node {
 		return n
 	}
 }
-
