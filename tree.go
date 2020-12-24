@@ -1,5 +1,9 @@
 package trie
 
+import (
+	"context"
+)
+
 // New creates a Tree.
 func New() *Tree {
 	return &Tree{
@@ -110,13 +114,55 @@ func (n *Node) Balance() {
 	n.Child = balanceNodes(nodes, 0, len(nodes))
 }
 
+func (n *Node) iterate(ctx context.Context, root *Node, ch chan *Node) {
+	if root != nil && n == root {
+		defer close(ch)
+	}
+
+	if n == nil {
+		return
+	}
+
+	select {
+	case <-ctx.Done():
+		return
+	default:
+		if n.Low != nil {
+			n.Low.iterate(ctx, root, ch)
+		}
+	}
+
+	select {
+	case <-ctx.Done():
+		return
+	case ch <- n:
+	}
+
+	select {
+	case <-ctx.Done():
+		return
+	default:
+		if n.High != nil {
+			n.High.iterate(ctx, root, ch)
+		}
+	}
+}
+
 // Each processes all sibiling nodes with proc.
 func (n *Node) Each(proc NodeProc) bool {
 	if n == nil {
 		return true
 	}
-	if !n.Low.Each(proc) || !proc(n) || !n.High.Each(proc) {
-		return false
+
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	ch := make(chan *Node)
+	go n.iterate(ctx, n, ch)
+	for n := range ch {
+		if !proc(n) {
+			return false
+		}
 	}
 	return true
 }

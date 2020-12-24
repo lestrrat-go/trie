@@ -28,7 +28,7 @@ func TestEach(t *testing.T) {
 
 	i := 0
 	tr.Each(NodeProc(func(n *Node) bool {
-		t.Logf("%#v", n.label)
+		t.Logf("%c", n.label)
 
 		var r rune
 		if l := n.label; l != nil {
