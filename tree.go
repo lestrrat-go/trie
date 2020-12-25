@@ -124,10 +124,9 @@ func (n *Node) Balance() {
 		return
 	}
 	nodes := make([]*Node, 0, n.cc)
-	n.Child.Each(func(m *Node) bool {
+	for m := range n.Child.Iterate(context.TODO()) {
 		nodes = append(nodes, m)
-		return true
-	})
+	}
 	n.Child = balanceNodes(nodes, 0, len(nodes))
 }
 
