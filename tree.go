@@ -65,15 +65,6 @@ func (tr *Tree) Iterate(ctx context.Context) <-chan *Node {
 	return ch
 }
 
-// Each processes all nodes in width first.
-func (tr *Tree) Each(proc NodeProc) {
-	for q := range tr.Iterate(context.TODO()) {
-		if !proc(q) {
-			return
-		}
-	}
-}
-
 // Get finds a child node which Label matches r.
 func (n *Node) Get(l Label) *Node {
 	n = n.Child
@@ -240,23 +231,6 @@ func (n *Node) Iterate(ctx context.Context) <-chan *Node {
 	}
 
 	return ch
-}
-
-// Each processes all sibiling nodes with proc.
-func (n *Node) Each(proc NodeProc) bool {
-	if n == nil {
-		return true
-	}
-
-	ctx, cancel := context.WithCancel(context.TODO())
-	defer cancel()
-
-	for n := range n.Iterate(ctx) {
-		if !proc(n) {
-			return false
-		}
-	}
-	return true
 }
 
 func balanceNodes(nodes []*Node, s, e int) *Node {
