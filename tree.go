@@ -59,11 +59,15 @@ func iterateTreeBFS(ctx context.Context, n *Node, ch chan *Node) {
 	}
 }
 
+func (tr *Tree) Iterate(ctx context.Context) <-chan *Node {
+	ch := make(chan *Node)
+	go iterateTreeBFS(ctx, tr.root, ch)
+	return ch
+}
+
 // Each processes all nodes in width first.
 func (tr *Tree) Each(proc NodeProc) {
-	ch := make(chan *Node)
-	go iterateTreeBFS(context.TODO(), tr.root, ch)
-	for q := range ch {
+	for q := range tr.Iterate(context.TODO()) {
 		if !proc(q) {
 			return
 		}
@@ -219,6 +223,10 @@ func WithBFSReverse(ctx context.Context) context.Context {
 
 func (n *Node) Iterate(ctx context.Context) <-chan *Node {
 	ch := make(chan *Node)
+	if n == nil {
+		close(ch)
+		return ch
+	}
 
 	switch st := ctx.Value(iterationStrategy{}); st {
 	case iterateStrategyDFS, nil:

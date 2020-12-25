@@ -1,18 +1,18 @@
 package trie
 
+import "context"
+
 // Compile compiles a MatchTree from a Tree.
 func Compile(tr *Tree) *MatchTree {
 	mt := &MatchTree{
 		root: tr.root,
 	}
 	mt.root.Value = &matchData{fail: mt.root}
-	tr.Each(func(n0 *Node) bool {
-		n0.Child.Each(func(n1 *Node) bool {
+	for n0 := range tr.Iterate(context.TODO()) {
+		for n1 := range n0.Child.Iterate(context.TODO()) {
 			mt.fillFail(n1, n0)
-			return true
-		})
-		return true
-	})
+		}
+	}
 	return mt
 }
 
