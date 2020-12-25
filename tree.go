@@ -37,19 +37,36 @@ func (tr *Tree) Put(key Key, value interface{}) *Node {
 	return n
 }
 
+func iterateTreeBFS(ctx context.Context, n *Node, ch chan *Node) {
+	defer close(ch)
+	nodes := []*Node{n}
+	for len(nodes) > 0 {
+		q := nodes[0]
+		nodes = nodes[1:]
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- q:
+		}
+
+		if child := q.Child; child == nil {
+			continue
+		}
+
+		for c := range q.Child.Iterate(ctx) {
+			nodes = append(nodes, c)
+		}
+	}
+}
+
 // Each processes all nodes in width first.
 func (tr *Tree) Each(proc NodeProc) {
-	nodes := []*Node{tr.root}
-	for len(nodes) > 0 {
-		f := nodes[0]
-		nodes = nodes[1:]
-		if !proc(f) {
-			break
+	ch := make(chan *Node)
+	go iterateTreeBFS(context.TODO(), tr.root, ch)
+	for q := range ch {
+		if !proc(q) {
+			return
 		}
-		f.Child.Each(func(n *Node) bool {
-			nodes = append(nodes, n)
-			return true
-		})
 	}
 }
 
@@ -134,20 +151,20 @@ func iterateNodesBFS(ctx context.Context, n, root *Node, ch chan *Node, reverse 
 		}
 
 		if reverse {
-		if next := q.High; next != nil {
-			nodes = append(nodes, next)
+			if next := q.High; next != nil {
+				nodes = append(nodes, next)
+			}
+			if next := q.Low; next != nil {
+				nodes = append(nodes, next)
+			}
+		} else {
+			if next := q.Low; next != nil {
+				nodes = append(nodes, next)
+			}
+			if next := q.High; next != nil {
+				nodes = append(nodes, next)
+			}
 		}
-		if next := q.Low; next != nil {
-			nodes = append(nodes, next)
-		}
-	} else {
-		if next := q.Low; next != nil {
-			nodes = append(nodes, next)
-		}
-		if next := q.High; next != nil {
-			nodes = append(nodes, next)
-		}
-	}
 	}
 }
 
