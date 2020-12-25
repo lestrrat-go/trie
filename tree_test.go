@@ -29,7 +29,7 @@ func TestEach(t *testing.T) {
 	}
 
 	i := 0
-	tr.Each(NodeProc(func(n *Node) bool {
+	for n := range tr.Iterate(context.Background()) {
 		t.Logf("%c", n.label)
 
 		var r rune
@@ -37,11 +37,10 @@ func TestEach(t *testing.T) {
 			r = l.(RuneLabel).Rune()
 		}
 		if !assert.Equal(t, expected[i], r, `labels should match for input %d`, i) {
-			return false
+			return
 		}
 		i++
-		return true
-	}))
+	}
 }
 
 func TestPut(t *testing.T) {
@@ -124,14 +123,14 @@ func collectRunes1(n *Node, max int) []rune {
 
 // collectRunes2 coolects label runes from sibling nodes in reverse order.
 func collectRunes2(n *Node, max int) []rune {
-	  ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-  defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-  var runes []rune
-  for q := range n.Iterate(WithBFSReverse(ctx)) {
-    runes = append(runes, q.label.(RuneLabel).Rune())
-  }
-  return runes
+	var runes []rune
+	for q := range n.Iterate(WithBFSReverse(ctx)) {
+		runes = append(runes, q.label.(RuneLabel).Rune())
+	}
+	return runes
 }
 
 func TestNode_Balance(t *testing.T) {
