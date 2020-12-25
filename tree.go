@@ -1,26 +1,21 @@
 package trie
 
-import "container/list"
-
-// Tree implemnets ternary trie-tree.
-type Tree struct {
-	// Root is root of the tree. Only Child is valid.
-	Root Node
-
-	// nc means node counts
-	nc int
-}
+import (
+	"context"
+)
 
 // New creates a Tree.
 func New() *Tree {
-	return new(Tree)
+	return &Tree{
+		root: &Node{},
+	}
 }
 
 // Get retrieves a value for key.
-func (tr *Tree) Get(key string) *Node {
-	n := &tr.Root
-	for _, r := range key {
-		n = n.Get(r)
+func (tr *Tree) Get(key Key) *Node {
+	n := tr.root
+	for label := range key.Iterate() {
+		n = n.Get(label)
 		if n == nil {
 			return nil
 		}
@@ -29,11 +24,11 @@ func (tr *Tree) Get(key string) *Node {
 }
 
 // Put stores a pair of key and value.
-func (tr *Tree) Put(key string, value interface{}) *Node {
-	n := &tr.Root
-	for _, r := range key {
+func (tr *Tree) Put(key Key, value interface{}) *Node {
+	n := tr.root
+	for label := range key.Iterate() {
 		var f bool
-		n, f = n.Dig(r)
+		n, f = n.Dig(label)
 		if f {
 			tr.nc++
 		}
@@ -42,43 +37,42 @@ func (tr *Tree) Put(key string, value interface{}) *Node {
 	return n
 }
 
-// Each processes all nodes in width first.
-func (tr *Tree) Each(proc NodeProc) {
-	q := list.New()
-	q.PushBack(&tr.Root)
-	for q.Len() != 0 {
-		f := q.Front()
-		q.Remove(f)
-		curr := f.Value.(*Node)
-		if !proc(curr) {
-			break
+func iterateTreeBFS(ctx context.Context, n *Node, ch chan *Node) {
+	defer close(ch)
+	nodes := []*Node{n}
+	for len(nodes) > 0 {
+		q := nodes[0]
+		nodes = nodes[1:]
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- q:
 		}
-		curr.Child.Each(func(n *Node) bool {
-			q.PushBack(n)
-			return true
-		})
+
+		if child := q.Child; child == nil {
+			continue
+		}
+
+		for c := range q.Child.Iterate(ctx) {
+			nodes = append(nodes, c)
+		}
 	}
 }
 
-// Node implemnets node of ternary trie-tree.
-type Node struct {
-	Label rune
-	Value interface{}
-	Low   *Node
-	High  *Node
-
-	Child *Node
-	cc    int // count of children.
+func (tr *Tree) Iterate(ctx context.Context) <-chan *Node {
+	ch := make(chan *Node)
+	go iterateTreeBFS(ctx, tr.root, ch)
+	return ch
 }
 
 // Get finds a child node which Label matches r.
-func (n *Node) Get(r rune) *Node {
+func (n *Node) Get(l Label) *Node {
 	n = n.Child
 	for n != nil {
-		switch {
-		case r == n.Label:
+		switch l.Compare(n.label) {
+		case 0:
 			return n
-		case r < n.Label:
+		case -1:
 			n = n.Low
 		default:
 			n = n.High
@@ -89,28 +83,28 @@ func (n *Node) Get(r rune) *Node {
 
 // Dig finds a child node which Label matches r. Or create a new one when there
 // are no nodes.
-func (n *Node) Dig(r rune) (node *Node, isNew bool) {
+func (n *Node) Dig(l Label) (node *Node, isNew bool) {
 	if n.Child == nil {
-		n.Child = &Node{Label: r}
+		n.Child = &Node{label: l}
 		n.cc = 1
 		return n.Child, true
 	}
 	m := n
 	n = n.Child
 	for {
-		switch {
-		case r == n.Label:
+		switch l.Compare(n.label) {
+		case 0:
 			return n, false
-		case r < n.Label:
+		case -1:
 			if n.Low == nil {
-				n.Low = &Node{Label: r}
+				n.Low = &Node{label: l}
 				m.cc++
 				return n.Low, true
 			}
 			n = n.Low
 		default:
 			if n.High == nil {
-				n.High = &Node{Label: r}
+				n.High = &Node{label: l}
 				m.cc++
 				return n.High, true
 			}
@@ -125,22 +119,118 @@ func (n *Node) Balance() {
 		return
 	}
 	nodes := make([]*Node, 0, n.cc)
-	n.Child.Each(func(m *Node) bool {
+	for m := range n.Child.Iterate(context.TODO()) {
 		nodes = append(nodes, m)
-		return true
-	})
+	}
 	n.Child = balanceNodes(nodes, 0, len(nodes))
 }
 
-// Each processes all sibiling nodes with proc.
-func (n *Node) Each(proc NodeProc) bool {
+func iterateNodesBFS(ctx context.Context, n, root *Node, ch chan *Node, reverse bool) {
+	//	if root != nil && n == root {
+	defer close(ch)
+	//	}
+
 	if n == nil {
-		return true
+		return
 	}
-	if !n.Low.Each(proc) || !proc(n) || !n.High.Each(proc) {
-		return false
+
+	nodes := []*Node{n}
+	for len(nodes) > 0 {
+		q := nodes[0]
+		nodes = nodes[1:]
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- q:
+		}
+
+		if reverse {
+			if next := q.High; next != nil {
+				nodes = append(nodes, next)
+			}
+			if next := q.Low; next != nil {
+				nodes = append(nodes, next)
+			}
+		} else {
+			if next := q.Low; next != nil {
+				nodes = append(nodes, next)
+			}
+			if next := q.High; next != nil {
+				nodes = append(nodes, next)
+			}
+		}
 	}
-	return true
+}
+
+func iterateNodesDFS(ctx context.Context, n, root *Node, ch chan *Node) {
+	if root != nil && n == root {
+		defer close(ch)
+	}
+
+	if n == nil {
+		return
+	}
+
+	select {
+	case <-ctx.Done():
+		return
+	default:
+		if next := n.Low; next != nil {
+			iterateNodesDFS(ctx, next, root, ch)
+		}
+	}
+
+	select {
+	case <-ctx.Done():
+		return
+	case ch <- n:
+	}
+
+	select {
+	case <-ctx.Done():
+		return
+	default:
+		if next := n.High; next != nil {
+			iterateNodesDFS(ctx, next, root, ch)
+		}
+	}
+}
+
+type iterationStrategy struct{}
+
+const (
+	iterateStrategyDFS = iota
+	iterateStrategyBFS
+	iterateStrategyBFSReverse
+)
+
+func WithBFS(ctx context.Context) context.Context {
+	return context.WithValue(ctx, iterationStrategy{}, iterateStrategyBFS)
+}
+
+func WithBFSReverse(ctx context.Context) context.Context {
+	return context.WithValue(ctx, iterationStrategy{}, iterateStrategyBFSReverse)
+}
+
+func (n *Node) Iterate(ctx context.Context) <-chan *Node {
+	ch := make(chan *Node)
+	if n == nil {
+		close(ch)
+		return ch
+	}
+
+	switch st := ctx.Value(iterationStrategy{}); st {
+	case iterateStrategyDFS, nil:
+		go iterateNodesDFS(ctx, n, n, ch)
+	case iterateStrategyBFS:
+		go iterateNodesBFS(ctx, n, n, ch, false)
+	case iterateStrategyBFSReverse:
+		go iterateNodesBFS(ctx, n, n, ch, true)
+	default:
+		panic("unknown iteration strategy")
+	}
+
+	return ch
 }
 
 func balanceNodes(nodes []*Node, s, e int) *Node {
@@ -166,6 +256,3 @@ func balanceNodes(nodes []*Node, s, e int) *Node {
 		return n
 	}
 }
-
-// NodeProc provides procedure for nodes.
-type NodeProc func(*Node) bool

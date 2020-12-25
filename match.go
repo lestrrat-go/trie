@@ -1,34 +1,18 @@
 package trie
 
-// Match is matched data.
-type Match struct {
-	Value interface{}
-}
-
-// MatchTree compares a string with multiple strings using Aho-Corasick
-// algorithm.
-type MatchTree struct {
-	root *Node
-}
-
-type matchData struct {
-	value interface{}
-	fail  *Node
-}
+import "context"
 
 // Compile compiles a MatchTree from a Tree.
 func Compile(tr *Tree) *MatchTree {
 	mt := &MatchTree{
-		root: &tr.Root,
+		root: tr.root,
 	}
 	mt.root.Value = &matchData{fail: mt.root}
-	tr.Each(func(n0 *Node) bool {
-		n0.Child.Each(func(n1 *Node) bool {
+	for n0 := range tr.Iterate(context.TODO()) {
+		for n1 := range n0.Child.Iterate(context.TODO()) {
 			mt.fillFail(n1, n0)
-			return true
-		})
-		return true
-	})
+		}
+	}
 	return mt
 }
 
@@ -39,7 +23,7 @@ func (mt *MatchTree) fillFail(curr, parent *Node) {
 		d.fail = mt.root
 		return
 	}
-	d.fail = mt.nextNode(mt.failNode(parent), curr.Label)
+	d.fail = mt.nextNode(mt.failNode(parent), curr.label)
 }
 
 func (mt *MatchTree) failNode(node *Node) *Node {
@@ -50,9 +34,9 @@ func (mt *MatchTree) failNode(node *Node) *Node {
 	return fail
 }
 
-func (mt *MatchTree) nextNode(node *Node, r rune) *Node {
+func (mt *MatchTree) nextNode(node *Node, l Label) *Node {
 	for {
-		if next := node.Get(r); next != nil {
+		if next := node.Get(l); next != nil {
 			return next
 		}
 		if node == mt.root {
@@ -63,10 +47,10 @@ func (mt *MatchTree) nextNode(node *Node, r rune) *Node {
 }
 
 // MatchAll matches text and return all matched data.I
-func (mt *MatchTree) MatchAll(text string, matches []Match) []Match {
+func (mt *MatchTree) MatchAll(key Key, matches []Match) []Match {
 	m := mt.Matcher()
-	for _, r := range text {
-		matches = m.Next(r, matches)
+	for l := range key.Iterate() {
+		matches = m.Next(l, matches)
 	}
 	return matches
 }
@@ -89,8 +73,8 @@ func (m *Matcher) Reset() *Matcher {
 }
 
 // Next appends a rune to match string, then get matches.
-func (m *Matcher) Next(r rune, matches []Match) []Match {
-	m.curr = m.mt.nextNode(m.curr, r)
+func (m *Matcher) Next(l Label, matches []Match) []Match {
+	m.curr = m.mt.nextNode(m.curr, l)
 	if m.curr == m.mt.root {
 		return nil
 	}

@@ -1,6 +1,10 @@
 package trie
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func toInts(matches []Match) []int {
 	if len(matches) == 0 {
@@ -16,21 +20,21 @@ func toInts(matches []Match) []int {
 func TestMatch(t *testing.T) {
 	// Build tree.
 	tr := New()
-	tr.Put("ab", 2)
-	tr.Put("bc", 4)
-	tr.Put("bab", 6)
-	tr.Put("d", 7)
-	tr.Put("abcde", 10)
+	tr.Put(StringKey("ab"), 2)
+	tr.Put(StringKey("bc"), 4)
+	tr.Put(StringKey("bab"), 6)
+	tr.Put(StringKey("d"), 7)
+	tr.Put(StringKey("abcde"), 10)
 	mt := Compile(tr)
 
 	// Check tree.
-	f := func(s string, exp []int) {
-		act := toInts(mt.MatchAll(s, nil))
-		assertEquals(t, act, exp, "not match for key=%q", s)
+	f := func(key Key, exp []int) {
+		act := toInts(mt.MatchAll(key, nil))
+		assert.Equal(t, act, exp, "not match for key=%q", key)
 	}
-	f("ab", []int{2})
-	f("bc", []int{4})
-	f("d", []int{7})
-	f("abcde", []int{2, 4, 7, 10})
-	f("babc", []int{6, 2, 4})
+	f(StringKey("ab"), []int{2})
+	f(StringKey("bc"), []int{4})
+	f(StringKey("d"), []int{7})
+	f(StringKey("abcde"), []int{2, 4, 7, 10})
+	f(StringKey("babc"), []int{6, 2, 4})
 }

@@ -1,110 +1,153 @@
 package trie
 
-import "testing"
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
 
-func TestPut(t *testing.T) {
-	f := func(tr *Tree, key string, value interface{}) {
-		n := tr.Get(key)
-		if value == nil {
-			assertEquals(t, n, (*Node)(nil), "no nodes for %q", key)
+	"github.com/stretchr/testify/assert"
+)
+
+func TestEach(t *testing.T) {
+	tr := New()
+	tr.Put(StringKey("foo"), "123")
+	tr.Put(StringKey("bar"), "999")
+	tr.Put(StringKey("日本語"), "こんにちは")
+
+	expected := []rune{
+		0,
+		'b',
+		'f',
+		'日',
+		'a',
+		'o',
+		'本',
+		'r',
+		'o',
+		'語',
+	}
+
+	i := 0
+	for n := range tr.Iterate(context.Background()) {
+		t.Logf("%c", n.label)
+
+		var r rune
+		if l := n.label; l != nil {
+			r = l.(RuneLabel).Rune()
+		}
+		if !assert.Equal(t, expected[i], r, `labels should match for input %d`, i) {
 			return
 		}
-		assertEquals(t, n.Value, value, "value for %q", key)
+		i++
 	}
+}
+
+func TestPut(t *testing.T) {
+	f := func(t *testing.T, tr *Tree, key Key, value interface{}) {
+		t.Helper()
+
+		n := tr.Get(key)
+		if value == nil {
+			assert.Equal(t, n, (*Node)(nil), "no nodes for %q", key)
+			return
+		}
+		assert.Equal(t, n.Value, value, "value for %q", key)
+	}
+
+	testcases := []struct {
+		Key   Key
+		Value interface{}
+	}{
+		{Key: StringKey("foo"), Value: "123"},
+		{Key: StringKey("bar"), Value: "999"},
+		{Key: StringKey("日本語"), Value: "こんにちは"},
+		{Key: StringKey("baz")},
+		{Key: StringKey("English")},
+	}
+
 	tr := New()
-	tr.Put("foo", "123")
-	tr.Put("bar", "999")
-	tr.Put("日本語", "こんにちは")
-	f(tr, "foo", "123")
-	f(tr, "bar", "999")
-	f(tr, "日本語", "こんにちは")
-	f(tr, "baz", nil)
-	f(tr, "English", nil)
+	tr.Put(StringKey("foo"), "123")
+	tr.Put(StringKey("bar"), "999")
+	tr.Put(StringKey("日本語"), "こんにちは")
+
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(fmt.Sprintf("%s", tc.Key), func(t *testing.T) {
+			f(t, tr, tc.Key, tc.Value)
+		})
+	}
 }
 
 func TestTree_nc(t *testing.T) {
 	tr := New()
-	tr.Put("foo", "123")
-	tr.Put("bar", "999")
-	tr.Put("日本語", "こんにちは")
+	tr.Put(StringKey("foo"), "123")
+	tr.Put(StringKey("bar"), "999")
+	tr.Put(StringKey("日本語"), "こんにちは")
 	if tr.nc != 9 {
 		t.Errorf("nc mismatch: %d", tr.nc)
 	}
 }
 
 func TestNode_cc(t *testing.T) {
-	f := func(runes string, cc int) {
+	f := func(key Key, cc int) {
 		n := new(Node)
-		for _, r := range runes {
-			n.Dig(r)
+		for l := range key.Iterate() {
+			n.Dig(l)
 		}
-		assertEquals(t, n.cc, cc, "runes: %q", runes)
+		if !assert.Equal(t, n.cc, cc, "runes: %q", key) {
+			return
+		}
 	}
-	f("", 0)
-	f("a", 1)
-	f("bac", 3)
-	f("aaa", 1)
-	f("bbbaaaccc", 3)
-	f("bacbacbac", 3)
-	f("日本語こんにちは", 8)
-	f("あめんぼあかいなあいうえお", 10)
+	f(StringKey(""), 0)
+	f(StringKey("a"), 1)
+	f(StringKey("bac"), 3)
+	f(StringKey("aaa"), 1)
+	f(StringKey("bbbaaaccc"), 3)
+	f(StringKey("bacbacbac"), 3)
+	f(StringKey("日本語こんにちは"), 8)
+	f(StringKey("あめんぼあかいなあいうえお"), 10)
 }
 
 // collectRunes1 coolects label runes from sibling nodes.
 func collectRunes1(n *Node, max int) []rune {
-	runes := make([]rune, 0, max)
-	q := make([]*Node, 0, max)
-	q = append(q, n)
-	for len(q) > 0 {
-		m := q[0]
-		runes = append(runes, m.Label)
-		if len(runes) > max {
-			return []rune("nodes may have infinite loop")
-		}
-		if m.Low != nil {
-			q = append(q, m.Low)
-		}
-		if m.High != nil {
-			q = append(q, m.High)
-		}
-		q = q[1:]
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var runes []rune
+	for q := range n.Iterate(WithBFS(ctx)) {
+		runes = append(runes, q.label.(RuneLabel).Rune())
 	}
 	return runes
 }
 
-// collectRunes1 coolects label runes from sibling nodes in reverse order.
+// collectRunes2 coolects label runes from sibling nodes in reverse order.
 func collectRunes2(n *Node, max int) []rune {
-	runes := make([]rune, 0, max)
-	q := make([]*Node, 0, max)
-	q = append(q, n)
-	for len(q) > 0 {
-		m := q[0]
-		runes = append(runes, m.Label)
-		if len(runes) > max {
-			return []rune("nodes may have infinite loop")
-		}
-		if m.High != nil {
-			q = append(q, m.High)
-		}
-		if m.Low != nil {
-			q = append(q, m.Low)
-		}
-		q = q[1:]
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var runes []rune
+	for q := range n.Iterate(WithBFSReverse(ctx)) {
+		runes = append(runes, q.label.(RuneLabel).Rune())
 	}
 	return runes
 }
 
 func TestNode_Balance(t *testing.T) {
 	n := new(Node)
-	for _, r := range "123456789ABCDEF" {
-		n.Dig(r)
+	for l := range StringKey("123456789ABCDEF").Iterate() {
+		n.Dig(l)
 	}
 	n.Balance()
 	if n.Child == nil {
 		t.Fatal("Child shoud not be nil after balancing")
 	}
 	r1 := collectRunes1(n.Child, n.cc)
-	assertEquals(t, string(r1), "84C26AE13579BDF", "should be balanced")
+	if !assert.Equal(t, "84C26AE13579BDF", string(r1), "should be balanced") {
+		return
+	}
 	r2 := collectRunes2(n.Child, n.cc)
-	assertEquals(t, string(r2), "8C4EA62FDB97531", "should be balanced")
+	if !assert.Equal(t, "8C4EA62FDB97531", string(r2), "should be balanced") {
+		return
+	}
 }
