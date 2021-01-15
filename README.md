@@ -27,5 +27,5 @@ for p := range t.Walk(ctx) {
 
 # REFERENCES
 
-Originally based on https://github.com/koron/trie
+Originally based on https://github.com/koron/go-trie
 Much code stolen from https://github.com/dghubble/trie
