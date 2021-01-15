@@ -1,49 +1,19 @@
 package trie
 
-// Tree implemnets ternary trie-tree.
-type Tree struct {
-	// Root is root of the tree. Only Child is valid.
-	root *Node
+import "context"
 
-	// nc means node counts
-	nc int
-}
-
-// Node implemnets node of ternary trie-tree.
-type Node struct {
-	label Label
-	Value interface{}
-	Low   *Node
-	High  *Node
-
-	Child *Node
-	cc    int // count of children.
-}
-
-// NodeProc provides procedure for nodes.
-type NodeProc func(*Node) bool
-
-// Match is matched data.
-type Match struct {
-	Value interface{}
-}
-
-// MatchTree compares a string with multiple strings using Aho-Corasick
-// algorithm.
-type MatchTree struct {
-	root *Node
-}
-
-type matchData struct {
-	value interface{}
-	fail  *Node
-}
-
-// Key is a sequence of Labels that comprises an input to a Tree.
+// Key is a sequence of Labels, which is associated with a value.
+// The Key interface represents any type that allows the Trie to
+// iterate over its elements, known as Labels.
+//
+// For example, a string can be thought of as a key consisting of
+// runes as its labels.
+//
+// This allows the user maximum flexibility in terms of the input to
+// use for our trie.
 type Key interface {
-	Iterate() <-chan Label
+	Iterate(context.Context) <-chan Label
 }
 
-type Label interface {
-	Compare(Label) int
-}
+// Label is a single entry in a Key. It can be anything, really
+type Label interface{}
