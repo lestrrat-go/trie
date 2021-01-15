@@ -1,5 +1,31 @@
-# Trie tree with string key
+# trie - A Generic Trie Implementation
 
-[![GoDoc](https://godoc.org/github.com/koron/go-trie?status.svg)](https://godoc.org/github.com/koron/go-trie)
-[![Go Report Card](https://goreportcard.com/badge/github.com/koron/go-trie)](https://goreportcard.com/report/github.com/koron/go-trie)
-[![Build Status](https://travis-ci.org/koron/go-trie.svg?branch=master)](https://travis-ci.org/koron/go-trie)
+This trie is implemented such that generic Key types can be used. 
+Most other trie implementations are optimized for string based keys, but my use
+case is to match certain numeric opcodes to arbitrary.
+
+Within this library Keys are treated as sequence of Labels.
+For example, a string can be thought of as Key that is comprised of a sequence
+of rune Labels.
+
+# SYNOPSIS
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+
+t := trie.New()
+
+t.Put(ctx, trie.StringKey("foo"), 1)
+v, ok := t.Get(ctx, trie.StringKey("foo"))
+ok := t.Delete(ctx, trie.StringKey("foo"))
+for p := range t.Walk(ctx) {
+	// p.Labels
+	// p.Value
+}
+```
+
+# REFERENCES
+
+Originally based on https://github.com/koron/trie
+Much code stolen from https://github.com/dghubble/trie
