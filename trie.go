@@ -34,7 +34,7 @@ func (t *Trie) Get(ctx context.Context, key Key) (interface{}, bool) {
 
 	node := t
 	for l := range key.Iterate(gctx) {
-		node, _ = node.children[l]
+		node = node.children[l]
 		if node == nil {
 			return nil, false
 		}
@@ -54,7 +54,7 @@ func (t *Trie) Put(ctx context.Context, key Key, value interface{}) bool {
 
 	node := t
 	for l := range key.Iterate(pctx) {
-		child, _ := node.children[l]
+		child := node.children[l]
 		if child == nil {
 			child = New()
 			node.children[l] = child
