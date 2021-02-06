@@ -5,6 +5,11 @@ import (
 )
 
 type StringKey string
+type RuneLabel rune
+
+func (r RuneLabel) UniqueID() interface{} {
+	return rune(r)
+}
 
 func stringKeyIterate(ctx context.Context, s string, ch chan Label) {
 	defer close(ch)
@@ -12,7 +17,7 @@ func stringKeyIterate(ctx context.Context, s string, ch chan Label) {
 		select {
 		case <-ctx.Done():
 			return
-		case ch <- r:
+		case ch <- RuneLabel(r):
 		}
 	}
 }

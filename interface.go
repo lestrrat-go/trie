@@ -16,4 +16,7 @@ type Key interface {
 }
 
 // Label is a single entry in a Key. It can be anything, really
-type Label interface{}
+type Label interface{
+	// UniqueID returns a unique identifier for this label.
+	UniqueID() interface{}
+}
