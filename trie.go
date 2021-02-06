@@ -10,16 +10,22 @@ import (
 
 // Trie is a simple trie that accepts arbitrary Key types as its input.
 type Trie struct {
-	children map[Label]*Trie
+	children map[interface{}]*Trie
 	hasValue bool
 	mu       sync.RWMutex
+	label    Label
 	value    interface{}
 }
 
 // New creates a new Trie
 func New() *Trie {
+	return newTrie(nil)
+}
+
+func newTrie(l Label) *Trie {
 	return &Trie{
-		children: make(map[Label]*Trie),
+		label: l,
+		children: make(map[interface{}]*Trie),
 	}
 }
 
@@ -34,7 +40,7 @@ func (t *Trie) Get(ctx context.Context, key Key) (interface{}, bool) {
 
 	node := t
 	for l := range key.Iterate(gctx) {
-		node = node.children[l]
+		node = node.children[l.UniqueID()]
 		if node == nil {
 			return nil, false
 		}
@@ -54,10 +60,10 @@ func (t *Trie) Put(ctx context.Context, key Key, value interface{}) bool {
 
 	node := t
 	for l := range key.Iterate(pctx) {
-		child := node.children[l]
+		child := node.children[l.UniqueID()]
 		if child == nil {
-			child = New()
-			node.children[l] = child
+			child = newTrie(l)
+			node.children[l.UniqueID()] = child
 		}
 		node = child
 	}
@@ -87,7 +93,7 @@ func (t *Trie) Delete(ctx context.Context, key Key) bool {
 			Label: l,
 			Node: node,
 		})
-		node = node.children[l]
+		node = node.children[l.UniqueID()]
 		if node == nil {
 			// node does not exist
 			return false
@@ -105,7 +111,7 @@ func (t *Trie) Delete(ctx context.Context, key Key) bool {
 	for i := len(ancestors) - 1; i >= 0; i-- {
 		ancestor := ancestors[i]
 		parent := ancestor.Node
-		delete(parent.children, ancestor.Label)
+		delete(parent.children, ancestor.Label.UniqueID())
 
 		if !parent.isLeaf() {
 			// parent has other children, stop
@@ -158,7 +164,7 @@ func (t *Trie) walk(ctx context.Context, dst chan WalkPair, labels []Label) {
 		}
 	}
 
-	for l, child := range t.children {
-		child.walk(ctx, dst, append(labels, l))
+	for _, child := range t.children {
+		child.walk(ctx, dst, append(labels, child.label))
 	}
 }
