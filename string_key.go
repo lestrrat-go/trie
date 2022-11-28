@@ -1,29 +1,34 @@
 package trie
 
-import (
-	"context"
-)
-
-type StringKey string
 type RuneLabel rune
 
 func (r RuneLabel) UniqueID() interface{} {
 	return rune(r)
 }
 
-func stringKeyIterate(ctx context.Context, s string, ch chan Label) {
-	defer close(ch)
-	for _, r := range s {
-		select {
-		case <-ctx.Done():
-			return
-		case ch <- RuneLabel(r):
-		}
-	}
+type RuneLabelIterator struct {
+	list []rune
+	cur  int
 }
 
-func (sl StringKey) Iterate(ctx context.Context) <-chan Label {
-	ch := make(chan Label)
-	go stringKeyIterate(ctx, string(sl), ch)
-	return ch
+func (iter *RuneLabelIterator) Next() bool {
+	return iter.cur < len(iter.list)
+}
+
+func (iter *RuneLabelIterator) Label() Label {
+	r := RuneLabel(iter.list[iter.cur])
+	iter.cur++
+	return r
+}
+
+type StringKey string
+
+func (sk StringKey) Labels() LabelIterator {
+	var list []rune
+	for _, r := range string(sk) {
+		list = append(list, r)
+	}
+	return &RuneLabelIterator{
+		list: list,
+	}
 }

@@ -1,7 +1,5 @@
 package trie
 
-import "context"
-
 // Key is a sequence of Labels, which is associated with a value.
 // The Key interface represents any type that allows the Trie to
 // iterate over its elements, known as Labels.
@@ -12,11 +10,18 @@ import "context"
 // This allows the user maximum flexibility in terms of the input to
 // use for our trie.
 type Key interface {
-	Iterate(context.Context) <-chan Label
+	Labels() LabelIterator
+}
+
+// LabelIterator is the structure used to iterate over the list of
+// labels that comprises a Key
+type LabelIterator interface {
+	Next() bool
+	Label() Label
 }
 
 // Label is a single entry in a Key. It can be anything, really
-type Label interface{
+type Label interface {
 	// UniqueID returns a unique identifier for this label.
 	UniqueID() interface{}
 }

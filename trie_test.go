@@ -12,15 +12,14 @@ import (
 func TestTrie(t *testing.T) {
 	t.Parallel()
 
+	tree := trie.New()
+	tree.Put(trie.StringKey("foo"), 1)
+	tree.Put(trie.StringKey("bar"), 2)
+	tree.Put(trie.StringKey("baz"), 3)
+	tree.Put(trie.StringKey("日本語"), 4)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	tree := trie.New()
-	tree.Put(ctx, trie.StringKey("foo"), 1)
-	tree.Put(ctx, trie.StringKey("bar"), 2)
-	tree.Put(ctx, trie.StringKey("baz"), 3)
-	tree.Put(ctx, trie.StringKey("日本語"), 4)
-
 	for p := range tree.Walk(ctx) {
 		t.Logf("%#v", p)
 	}
@@ -48,9 +47,7 @@ func TestTrie(t *testing.T) {
 		tc := tc
 		t.Run(fmt.Sprintf("%s", tc.Key), func(t *testing.T) {
 			t.Parallel()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			v, ok := tree.Get(ctx, tc.Key)
+			v, ok := tree.Get(tc.Key)
 			if tc.Missing {
 				if !assert.False(t, ok, `tree.Get should return false`) {
 					return

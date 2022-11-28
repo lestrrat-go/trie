@@ -24,22 +24,19 @@ func New() *Trie {
 
 func newTrie(l Label) *Trie {
 	return &Trie{
-		label: l,
+		label:    l,
 		children: make(map[interface{}]*Trie),
 	}
 }
 
 // Get returns the value associated with `key`. The second return value
 // is true if the value exists, false otherwise
-func (t *Trie) Get(ctx context.Context, key Key) (interface{}, bool) {
+func (t *Trie) Get(key Key) (interface{}, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-
-	gctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	node := t
-	for l := range key.Iterate(gctx) {
+	for iter := key.Labels(); iter.Next(); {
+		l := iter.Label()
 		node = node.children[l.UniqueID()]
 		if node == nil {
 			return nil, false
@@ -51,15 +48,13 @@ func (t *Trie) Get(ctx context.Context, key Key) (interface{}, bool) {
 // Put sets `key` to point to data `value`. The return value is true
 // if the value was set anew. If this was an update operation, the return
 // value would be false
-func (t *Trie) Put(ctx context.Context, key Key, value interface{}) bool {
+func (t *Trie) Put(key Key, value interface{}) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	pctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	node := t
-	for l := range key.Iterate(pctx) {
+	for iter := key.Labels(); iter.Next(); {
+		l := iter.Label()
 		child := node.children[l.UniqueID()]
 		if child == nil {
 			child = newTrie(l)
@@ -85,13 +80,14 @@ type ancestor struct {
 
 // Delete removes data associated with `key`. It returns true if the value
 // was found and deleted, false otherwise
-func (t *Trie) Delete(ctx context.Context, key Key) bool {
+func (t *Trie) Delete(key Key) bool {
 	var ancestors []ancestor
 	node := t
-	for l := range key.Iterate(ctx) {
+	for iter := key.Labels(); iter.Next(); {
+		l := iter.Label()
 		ancestors = append(ancestors, ancestor{
 			Label: l,
-			Node: node,
+			Node:  node,
 		})
 		node = node.children[l.UniqueID()]
 		if node == nil {
