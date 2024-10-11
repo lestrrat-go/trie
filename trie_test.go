@@ -1,66 +1,41 @@
 package trie_test
 
 import (
-	"context"
-	"fmt"
 	"testing"
 
-	"github.com/lestrrat-go/trie"
-	"github.com/stretchr/testify/assert"
+	"github.com/lestrrat-go/trie/v2"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTrie(t *testing.T) {
 	t.Parallel()
 
-	tree := trie.New()
-	tree.Put(trie.StringKey("foo"), 1)
-	tree.Put(trie.StringKey("bar"), 2)
-	tree.Put(trie.StringKey("baz"), 3)
-	tree.Put(trie.StringKey("日本語"), 4)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	for p := range tree.Walk(ctx) {
-		t.Logf("%#v", p)
-	}
+	tree := trie.New[string, rune, int](trie.String())
 
 	testcases := []struct {
-		Key      trie.Key
-		Expected interface{}
-		Missing  bool
+		Key   string
+		Value int
 	}{
-		{
-			Key:      trie.StringKey("foo"),
-			Expected: 1,
-		},
-		{
-			Key:      trie.StringKey("日本語"),
-			Expected: 4,
-		},
-		{
-			Key:     trie.StringKey("hoge"),
-			Missing: true,
-		},
+		{"foo", 1},
+		{"far", 2},
+		{"for", 3},
+		{"bar", 4},
+		{"baz", 5},
 	}
 
 	for _, tc := range testcases {
-		tc := tc
-		t.Run(fmt.Sprintf("%s", tc.Key), func(t *testing.T) {
-			t.Parallel()
-			v, ok := tree.Get(tc.Key)
-			if tc.Missing {
-				if !assert.False(t, ok, `tree.Get should return false`) {
-					return
-				}
-			} else {
-				if !assert.True(t, ok, `tree.Get should return true`) {
-					return
-				}
+		tree.Put(tc.Key, tc.Value)
+	}
 
-				if !assert.Equal(t, tc.Expected, v, `tree.Get should return expected value`) {
-					return
-				}
-			}
+	for _, tc := range testcases {
+		t.Run(tc.Key, func(t *testing.T) {
+			v, ok := tree.Get(tc.Key)
+			require.True(t, ok, `tree.Get should return true`)
+			require.Equal(t, tc.Value, v, `tree.Get should return expected value`)
 		})
 	}
+
+	require.True(t, tree.Delete("foo"), `tree.Delete should return true`)
+	_, ok := tree.Get("foo")
+	require.False(t, ok, `tree.Get should return false`)
 }
