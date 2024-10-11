@@ -24,7 +24,7 @@ func TestTrie(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		tree.Put(tc.Key, tc.Value)
+		_ = tree.Put(tc.Key, tc.Value)
 	}
 
 	for _, tc := range testcases {

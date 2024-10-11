@@ -10,10 +10,10 @@ func Example() {
 	tree := trie.New[string, rune, any](trie.String())
 
 	// Put values in the trie
-	tree.Put("foo", "one")
-	tree.Put("bar", 2)
-	tree.Put("baz", 3.0)
-	tree.Put("日本語", []byte{'f', 'o', 'u', 'r'})
+	_ = tree.Put("foo", "one")
+	_ = tree.Put("bar", 2)
+	_ = tree.Put("baz", 3.0)
+	_ = tree.Put("日本語", []byte{'f', 'o', 'u', 'r'})
 
 	// Get a value from the trie
 	v, ok := tree.Get("日本語")
