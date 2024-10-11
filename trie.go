@@ -48,6 +48,8 @@ type Node[K cmp.Ordered, V any] interface {
 	Value() V
 	Children() iter.Seq[Node[K, V]]
 	AddChild(Node[K, V])
+	Parent() Node[K, V]
+	Ancestors() iter.Seq[Node[K, V]]
 }
 
 // New creates a new Trie object.
@@ -73,27 +75,45 @@ func (t *Trie[L, K, V]) Get(key L) (V, bool) {
 	for x := range iter {
 		tokens = append(tokens, x)
 	}
-	return get(t.root, tokens)
+	node, ok := getNode(t.root, tokens)
+	if !ok {
+		return zero, false
+	}
+	return node.Value(), true
 }
 
-func get[K cmp.Ordered, V any](root Node[K, V], tokens []K) (V, bool) {
+func (t *Trie[L, K, V]) GetNode(key L) (Node[K, V], bool) {
+	iter, err := t.tokenizer.Tokenize(key)
+	if err != nil {
+		return nil, false
+	}
+
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	var tokens []K
+	for x := range iter {
+		tokens = append(tokens, x)
+	}
+	return getNode(t.root, tokens)
+}
+
+func getNode[K cmp.Ordered, V any](root Node[K, V], tokens []K) (Node[K, V], bool) {
 	if len(tokens) > 0 {
 		for child := range root.Children() {
 			if child.Key() == tokens[0] {
 				// found the current token in the children.
 				if len(tokens) == 1 {
 					// this is the node we're looking for
-					return child.Value(), true
+					return child, true
 				}
 				// we need to traverse down the trie
-				return get[K, V](child, tokens[1:])
+				return getNode[K, V](child, tokens[1:])
 			}
 		}
 	}
 
 	// if we got here, that means we couldn't find a common ancestor
-	var zero V
-	return zero, false
+	return nil, false
 }
 
 // Delete removes data associated with `key`. It returns true if the value
@@ -201,6 +221,7 @@ type node[K cmp.Ordered, V any] struct {
 	key      K
 	value    V
 	children []*node[K, V]
+	parent   *node[K, V]
 }
 
 func newNode[K cmp.Ordered, V any]() *node[K, V] {
@@ -213,6 +234,22 @@ func (n *node[K, V]) Key() K {
 
 func (n *node[K, V]) Value() V {
 	return n.value
+}
+
+func (n *node[K, V]) Parent() Node[K, V] {
+	return n.parent
+}
+
+func (n *node[K, V]) Ancestors() iter.Seq[Node[K, V]] {
+	return func(yield func(Node[K, V]) bool) {
+		cur := n.parent
+		for cur != nil {
+			if !yield(cur) {
+				break
+			}
+			cur = cur.parent
+		}
+	}
 }
 
 func (n *node[K, V]) Children() iter.Seq[Node[K, V]] {
@@ -235,7 +272,9 @@ func (n *node[K, V]) AddChild(child Node[K, V]) {
 	// Node[T] interface because we don't want the users to instantiate
 	// their own nodes... so this type conversion is safe.
 	//nolint:forcetypeassert
-	n.children = append(n.children, child.(*node[K, V]))
+	raw := child.(*node[K, V])
+	raw.parent = n
+	n.children = append(n.children, raw)
 	sort.Slice(n.children, func(i, j int) bool {
 		return n.children[i].Key() < n.children[j].Key()
 	})
@@ -248,6 +287,12 @@ type VisitMetadata struct {
 
 type Visitor[K cmp.Ordered, V any] interface {
 	Visit(Node[K, V], VisitMetadata) bool
+}
+
+type VisitFunc[K cmp.Ordered, V any] func(Node[K, V], VisitMetadata) bool
+
+func (f VisitFunc[K, V]) Visit(n Node[K, V], m VisitMetadata) bool {
+	return f(n, m)
 }
 
 func Walk[L any, K cmp.Ordered, V any](trie *Trie[L, K, V], v Visitor[K, V]) {
@@ -273,7 +318,7 @@ func (dumper[K, V]) Visit(n Node[K, V], meta VisitMetadata) bool {
 		sb.WriteString("  ")
 	}
 
-	fmt.Fprintf(&sb, "%v: %v", n.Key(), n.Value())
+	fmt.Fprintf(&sb, "%q: %v", fmt.Sprintf("%v", n.Key()), n.Value())
 	fmt.Println(sb.String())
 	return true
 }
