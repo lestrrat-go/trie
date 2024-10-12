@@ -50,3 +50,7 @@ func Example() {
 ```
 source: [trie_example_test.go](https://github.com/lestrrat-go/trie/blob/refs/heads/v2/trie_example_test.go)
 <!-- END INCLUDE -->
+
+# Acknowledgements
+
+This repository started as a fork of github.com/koron/go-trie. It has been re-created to avoid GitHub forcing PRs to be made against the upstream source instead of this library.
