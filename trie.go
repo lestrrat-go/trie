@@ -44,11 +44,25 @@ type Trie[L any, K cmp.Ordered, V any] struct {
 
 // Node represents an individual node in the trie.
 type Node[K cmp.Ordered, V any] interface {
+	// Key returns the key associated with this node
 	Key() K
+
+	// Value returns the value associated with this node
 	Value() V
+
+	// Children returns the children of this node
 	Children() iter.Seq[Node[K, V]]
+
+	// First returns the first child of this node
+	First() Node[K, V]
+
+	// AddChild adds a child to this node
 	AddChild(Node[K, V])
+
+	// Parent returns the parent of this node
 	Parent() Node[K, V]
+
+	// Ancestors returns a sequence of ancestors of this node
 	Ancestors() iter.Seq[Node[K, V]]
 }
 
@@ -264,6 +278,13 @@ func (n *node[K, V]) Children() iter.Seq[Node[K, V]] {
 			}
 		}
 	}
+}
+
+func (n *node[K, V]) First() Node[K, V] {
+	if len(n.children) == 0 {
+		return nil
+	}
+	return n.children[0]
 }
 
 func (n *node[K, V]) AddChild(child Node[K, V]) {
