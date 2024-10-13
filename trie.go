@@ -62,7 +62,9 @@ type Node[K cmp.Ordered, V any] interface {
 	// Parent returns the parent of this node
 	Parent() Node[K, V]
 
-	// Ancestors returns a sequence of ancestors of this node
+	// Ancestors returns a sequence of ancestors of this node.
+	// The first element is the root element, progressing all the way
+	// up to the parent of this node.
 	Ancestors() iter.Seq[Node[K, V]]
 }
 
