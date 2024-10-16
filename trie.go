@@ -16,13 +16,13 @@ import (
 // Tokenizer is an object that tokenize a L into individual keys.
 // For example, a string tokenizer would split a string into individual runes.
 type Tokenizer[L any, K cmp.Ordered] interface {
-	Tokenize(L) (iter.Seq[K], error)
+	Tokenize(L) ([]K, error)
 }
 
 // TokenizeFunc is a function that implements the Tokenizer interface
-type TokenizeFunc[L any, K cmp.Ordered] func(L) (iter.Seq[K], error)
+type TokenizeFunc[L any, K cmp.Ordered] func(L) ([]K, error)
 
-func (f TokenizeFunc[L, K]) Tokenize(in L) (iter.Seq[K], error) {
+func (f TokenizeFunc[L, K]) Tokenize(in L) ([]K, error) {
 	return f(in)
 }
 
@@ -82,17 +82,13 @@ func New[L any, K cmp.Ordered, V any](tokenizer Tokenizer[L, K]) *Trie[L, K, V] 
 // indicates if the value was found.
 func (t *Trie[L, K, V]) Get(key L) (V, bool) {
 	var zero V
-	iter, err := t.tokenizer.Tokenize(key)
+	tokens, err := t.tokenizer.Tokenize(key)
 	if err != nil {
 		return zero, false
 	}
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	var tokens []K
-	for x := range iter {
-		tokens = append(tokens, x)
-	}
 	node, ok := getNode(t.root, tokens)
 	if !ok {
 		return zero, false
@@ -101,17 +97,13 @@ func (t *Trie[L, K, V]) Get(key L) (V, bool) {
 }
 
 func (t *Trie[L, K, V]) GetNode(key L) (Node[K, V], bool) {
-	iter, err := t.tokenizer.Tokenize(key)
+	tokens, err := t.tokenizer.Tokenize(key)
 	if err != nil {
 		return nil, false
 	}
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	var tokens []K
-	for x := range iter {
-		tokens = append(tokens, x)
-	}
 	return getNode(t.root, tokens)
 }
 
@@ -137,13 +129,9 @@ func getNode[K cmp.Ordered, V any](root Node[K, V], tokens []K) (Node[K, V], boo
 // Delete removes data associated with `key`. It returns true if the value
 // was found and deleted, false otherwise
 func (t *Trie[L, K, V]) Delete(key L) bool {
-	iter, err := t.tokenizer.Tokenize(key)
+	tokens, err := t.tokenizer.Tokenize(key)
 	if err != nil {
 		return false
-	}
-	var tokens []K
-	for x := range iter {
-		tokens = append(tokens, x)
 	}
 
 	t.mu.Lock()
@@ -180,17 +168,12 @@ func delete[K cmp.Ordered, V any](root *node[K, V], tokens []K) bool {
 
 // Put sets `key` to point to data `value`.
 func (t *Trie[L, K, V]) Put(key L, value V) error {
-	iter, err := t.tokenizer.Tokenize(key)
+	tokens, err := t.tokenizer.Tokenize(key)
 	if err != nil {
 		return fmt.Errorf(`failed to tokenize key: %w`, err)
 	}
+
 	node := t.root
-
-	var tokens []K
-	for x := range iter {
-		tokens = append(tokens, x)
-	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	put[K, V](node, tokens, value)
