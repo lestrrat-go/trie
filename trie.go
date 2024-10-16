@@ -63,8 +63,8 @@ type Node[K cmp.Ordered, V any] interface {
 	Parent() Node[K, V]
 
 	// Ancestors returns a sequence of ancestors of this node.
-	// The first element is the root element, progressing all the way
-	// up to the parent of this node.
+	// The first element is the current element, progressing all the way
+	// back to the root element ("")
 	Ancestors() iter.Seq[Node[K, V]]
 }
 
@@ -271,13 +271,13 @@ func (n *node[K, V]) Ancestors() iter.Seq[Node[K, V]] {
 
 	return func(yield func(Node[K, V]) bool) {
 		for len(ancestors) > 0 {
-			cur := ancestors[len(ancestors)-1]
+			cur := ancestors[0]
 			if cur != nil && !cur.isRoot {
 				if !yield(cur) {
 					break
 				}
 			}
-			ancestors = ancestors[:len(ancestors)-1]
+			ancestors = ancestors[1:]
 		}
 	}
 }
