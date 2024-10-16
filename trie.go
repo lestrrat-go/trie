@@ -6,7 +6,6 @@ package trie
 import (
 	"cmp"
 	"fmt"
-	"iter"
 	"slices"
 	"sort"
 	"strings"
@@ -50,8 +49,8 @@ type Node[K cmp.Ordered, V any] interface {
 	// Value returns the value associated with this node
 	Value() V
 
-	// Children returns the children of this node
-	Children() iter.Seq[Node[K, V]]
+	// Children returns the immediate children nodes of this node
+	Children() []Node[K, V]
 
 	// First returns the first child of this node
 	First() Node[K, V]
@@ -109,7 +108,7 @@ func (t *Trie[L, K, V]) GetNode(key L) (Node[K, V], bool) {
 
 func getNode[K cmp.Ordered, V any](root Node[K, V], tokens []K) (Node[K, V], bool) {
 	if len(tokens) > 0 {
-		for child := range root.Children() {
+		for _, child := range root.Children() {
 			if child.Key() == tokens[0] {
 				// found the current token in the children.
 				if len(tokens) == 1 {
@@ -186,7 +185,7 @@ func put[K cmp.Ordered, V any](root Node[K, V], tokens []K, value V) {
 	}
 
 	for _, token := range tokens {
-		for child := range root.Children() {
+		for _, child := range root.Children() {
 			if child.Key() == token {
 				// found the current token in the children.
 				// we need to traverse down the trie
@@ -254,18 +253,14 @@ func (n *node[K, V]) Ancestors() []Node[K, V] {
 	return ancestors
 }
 
-func (n *node[K, V]) Children() iter.Seq[Node[K, V]] {
+func (n *node[K, V]) Children() []Node[K, V] {
 	n.mu.RLock()
-	children := make([]*node[K, V], len(n.children))
-	copy(children, n.children)
-	n.mu.RUnlock()
-	return func(yield func(Node[K, V]) bool) {
-		for _, child := range children {
-			if !yield(child) {
-				break
-			}
-		}
+	children := make([]Node[K, V], 0, len(n.children))
+	for _, child := range n.children {
+		children = append(children, child)
 	}
+	n.mu.RUnlock()
+	return children
 }
 
 func (n *node[K, V]) First() Node[K, V] {
@@ -311,7 +306,7 @@ func Walk[L any, K cmp.Ordered, V any](trie *Trie[L, K, V], v Visitor[K, V]) {
 }
 
 func walk[K cmp.Ordered, V any](node Node[K, V], v Visitor[K, V], meta VisitMetadata) {
-	for child := range node.Children() {
+	for _, child := range node.Children() {
 		if !v.Visit(child, meta) {
 			break
 		}
