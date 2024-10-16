@@ -6,7 +6,6 @@ package trie
 import (
 	"cmp"
 	"fmt"
-	"iter"
 	"slices"
 	"sort"
 	"strings"
@@ -16,13 +15,13 @@ import (
 // Tokenizer is an object that tokenize a L into individual keys.
 // For example, a string tokenizer would split a string into individual runes.
 type Tokenizer[L any, K cmp.Ordered] interface {
-	Tokenize(L) (iter.Seq[K], error)
+	Tokenize(L) ([]K, error)
 }
 
 // TokenizeFunc is a function that implements the Tokenizer interface
-type TokenizeFunc[L any, K cmp.Ordered] func(L) (iter.Seq[K], error)
+type TokenizeFunc[L any, K cmp.Ordered] func(L) ([]K, error)
 
-func (f TokenizeFunc[L, K]) Tokenize(in L) (iter.Seq[K], error) {
+func (f TokenizeFunc[L, K]) Tokenize(in L) ([]K, error) {
 	return f(in)
 }
 
@@ -50,8 +49,8 @@ type Node[K cmp.Ordered, V any] interface {
 	// Value returns the value associated with this node
 	Value() V
 
-	// Children returns the children of this node
-	Children() iter.Seq[Node[K, V]]
+	// Children returns the immediate children nodes of this node
+	Children() []Node[K, V]
 
 	// First returns the first child of this node
 	First() Node[K, V]
@@ -63,9 +62,9 @@ type Node[K cmp.Ordered, V any] interface {
 	Parent() Node[K, V]
 
 	// Ancestors returns a sequence of ancestors of this node.
-	// The first element is the current element, progressing all the way
-	// back to the root element ("")
-	Ancestors() iter.Seq[Node[K, V]]
+	// The first element is the root element, progressing all the way
+	// up to the parent of this node.
+	Ancestors() []Node[K, V]
 }
 
 // New creates a new Trie object.
@@ -82,17 +81,13 @@ func New[L any, K cmp.Ordered, V any](tokenizer Tokenizer[L, K]) *Trie[L, K, V] 
 // indicates if the value was found.
 func (t *Trie[L, K, V]) Get(key L) (V, bool) {
 	var zero V
-	iter, err := t.tokenizer.Tokenize(key)
+	tokens, err := t.tokenizer.Tokenize(key)
 	if err != nil {
 		return zero, false
 	}
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	var tokens []K
-	for x := range iter {
-		tokens = append(tokens, x)
-	}
 	node, ok := getNode(t.root, tokens)
 	if !ok {
 		return zero, false
@@ -101,23 +96,19 @@ func (t *Trie[L, K, V]) Get(key L) (V, bool) {
 }
 
 func (t *Trie[L, K, V]) GetNode(key L) (Node[K, V], bool) {
-	iter, err := t.tokenizer.Tokenize(key)
+	tokens, err := t.tokenizer.Tokenize(key)
 	if err != nil {
 		return nil, false
 	}
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	var tokens []K
-	for x := range iter {
-		tokens = append(tokens, x)
-	}
 	return getNode(t.root, tokens)
 }
 
 func getNode[K cmp.Ordered, V any](root Node[K, V], tokens []K) (Node[K, V], bool) {
 	if len(tokens) > 0 {
-		for child := range root.Children() {
+		for _, child := range root.Children() {
 			if child.Key() == tokens[0] {
 				// found the current token in the children.
 				if len(tokens) == 1 {
@@ -137,13 +128,9 @@ func getNode[K cmp.Ordered, V any](root Node[K, V], tokens []K) (Node[K, V], boo
 // Delete removes data associated with `key`. It returns true if the value
 // was found and deleted, false otherwise
 func (t *Trie[L, K, V]) Delete(key L) bool {
-	iter, err := t.tokenizer.Tokenize(key)
+	tokens, err := t.tokenizer.Tokenize(key)
 	if err != nil {
 		return false
-	}
-	var tokens []K
-	for x := range iter {
-		tokens = append(tokens, x)
 	}
 
 	t.mu.Lock()
@@ -180,17 +167,12 @@ func delete[K cmp.Ordered, V any](root *node[K, V], tokens []K) bool {
 
 // Put sets `key` to point to data `value`.
 func (t *Trie[L, K, V]) Put(key L, value V) error {
-	iter, err := t.tokenizer.Tokenize(key)
+	tokens, err := t.tokenizer.Tokenize(key)
 	if err != nil {
 		return fmt.Errorf(`failed to tokenize key: %w`, err)
 	}
+
 	node := t.root
-
-	var tokens []K
-	for x := range iter {
-		tokens = append(tokens, x)
-	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	put[K, V](node, tokens, value)
@@ -203,7 +185,7 @@ func put[K cmp.Ordered, V any](root Node[K, V], tokens []K, value V) {
 	}
 
 	for _, token := range tokens {
-		for child := range root.Children() {
+		for _, child := range root.Children() {
 			if child.Key() == token {
 				// found the current token in the children.
 				// we need to traverse down the trie
@@ -259,8 +241,8 @@ func (n *node[K, V]) Parent() Node[K, V] {
 	return n.parent
 }
 
-func (n *node[K, V]) Ancestors() iter.Seq[Node[K, V]] {
-	var ancestors []*node[K, V]
+func (n *node[K, V]) Ancestors() []Node[K, V] {
+	var ancestors []Node[K, V]
 	for {
 		n = n.parent
 		if n == nil {
@@ -268,32 +250,17 @@ func (n *node[K, V]) Ancestors() iter.Seq[Node[K, V]] {
 		}
 		ancestors = append(ancestors, n)
 	}
-
-	return func(yield func(Node[K, V]) bool) {
-		for len(ancestors) > 0 {
-			cur := ancestors[0]
-			if cur != nil && !cur.isRoot {
-				if !yield(cur) {
-					break
-				}
-			}
-			ancestors = ancestors[1:]
-		}
-	}
+	return ancestors
 }
 
-func (n *node[K, V]) Children() iter.Seq[Node[K, V]] {
+func (n *node[K, V]) Children() []Node[K, V] {
 	n.mu.RLock()
-	children := make([]*node[K, V], len(n.children))
-	copy(children, n.children)
-	n.mu.RUnlock()
-	return func(yield func(Node[K, V]) bool) {
-		for _, child := range children {
-			if !yield(child) {
-				break
-			}
-		}
+	children := make([]Node[K, V], 0, len(n.children))
+	for _, child := range n.children {
+		children = append(children, child)
 	}
+	n.mu.RUnlock()
+	return children
 }
 
 func (n *node[K, V]) First() Node[K, V] {
@@ -339,7 +306,7 @@ func Walk[L any, K cmp.Ordered, V any](trie *Trie[L, K, V], v Visitor[K, V]) {
 }
 
 func walk[K cmp.Ordered, V any](node Node[K, V], v Visitor[K, V], meta VisitMetadata) {
-	for child := range node.Children() {
+	for _, child := range node.Children() {
 		if !v.Visit(child, meta) {
 			break
 		}
